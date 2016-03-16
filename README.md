@@ -3,6 +3,6 @@ Sagemath code for the computation of the truncated Alexander invariant of Galois
 
 This repository contais the Sagemath code for the problem stated in the above lines. It contains two files:
 	
-	*CodeLines.sws*: Notebook file with the code
+	CodeLines.sws: Notebook file with the code
 	
 	CodeLines.txt: text file to be used in a personal installation of Sagemath or in CloudSagemath
