@@ -1,0 +1,325 @@
+def Delta(lista,B):
+    res=B(1)
+    l=copy(lista)[:-1]
+    while len(l)>0:
+        res=res*B(l)
+        l=l[:-1]
+    return res
+
+def clean_conj(lista,F):
+    n=len(lista)
+    if n%2==0:
+        print "Not conjugate to a generator"
+        return None
+    m=ZZ((n-1)/2)
+    a=lista[m]
+    b=lista[m+1:]
+    if F(b)*F(lista[:m])!=F(1):
+        print "Not conjugate to a generator"
+        return None
+    return [a,b]        
+  
+def list_of_relations_2(orden0,wiring0):
+    wiring=[[B(_[0]),_[1]]for _ in wiring0]
+    res1=[]
+    trenza=B(1)
+    orden=copy(orden0)
+    for cruce in wiring:
+        u,v=cruce
+        orden=(u^-1).permutation()*orden
+        trenza=trenza*u
+        w=[orden.inverse()(_) for _ in v]
+        res1.append([trenza,v,w,orden])
+        trw=Delta(w,B)
+        trenza=trenza*trw
+        orden=trw.permutation().inverse()*orden
+    final=[]
+    for aa in res1:
+        lis=[]
+        for i in aa[2]:
+            accion=[_.sign()*orden0(_.abs()) for _ in (F([i])*aa[0]^-1).Tietze()]
+            listas=clean_conj(accion,F)
+            if listas==None:
+                print 'Problems'
+                return None
+            else:
+                lis+=[listas]
+        datos1=[[_[0] for _ in lis],[_[1] for _ in lis]]
+        final+=[datos1]
+    return final
+    
+ 
+def CommProd1(a,l1,F,LR,XX):
+    ll1=list(F(l1).Tietze())
+    if len(ll1)==0:
+        return M(0)
+    return XX[a,ll1[0]]+tt([ll1[0]],LR)*CommProd1(a,ll1[1:],F,LR,XX)
+
+
+def CommCyclic1(L,F,LR,XX,dir='RL'):
+    res=[]
+    r=len(L[0])
+    comb=L[0]
+    mn=comb.index(min(comb))
+    L1=[v[mn:]+v[:mn] for v in L]
+    LF=[F([-u for u in reversed(L1[1][j])]+[L1[0][j]]+L1[1][j]) for j in range(r)]
+    for j in range(1,r):
+        u=F(L1[1][j])
+        if dir=='RL':
+            LFp=[_ for _ in reversed(LF[j+1:]+LF[:j])]
+        elif dir=='LR':
+            LFp=LF[j+1:]+LF[:j]
+        w=u*prod(LFp)*u^-1
+        res+=[CommProd1(L1[0][j],list(w.Tietze()),F,LR,XX)]
+    return res
+    
+def tt(i,ring):
+    return prod([LR.gen(ZZ(j).abs()-1)^(ZZ(j).sign()) for j in i])
+    
+def MatTrunc(mat):
+    A=mat
+    m=A.nrows()
+    return Matrix(m,[v.truncate(2) for v in A.list()])
+    
+    
+def EscalonarM2(matriz,n):
+    U=matriz
+    U0=Matrix(U.nrows(),[v.constant_coefficient() for v in U.list()])
+    A,B=U0.echelon_form(transformation=True)
+    U1=B*U
+    Apivot=[]
+    j=0
+    for i in range(A.rank()):
+        while A[i,j]==0:
+            j=j+1
+        Apivot.append(j)
+    for i in range(A.rank()):
+        j=Apivot[i]
+        U1.rescale_row(i,U1[i,j]^-1)
+        for k in range(i)+range(i+1,A.nrows()):
+            U1.add_multiple_of_row(k,i,-U1[k,j])
+    SustNeg=identity_matrix(T0,n*(n-1)/2)
+    for i in range(A.rank()):
+        for  j in range(n*(n-1)/2):
+            SustNeg[j,Apivot[i]]=-U1[i,j].truncate(2).polynomial()
+    SustNeg=SustNeg.delete_rows(Apivot)
+    return SustNeg
+
+def ImagenMorfismo(L,XX,YY,S,LRv,dicv,inc):
+    i,j=L
+    res=XX[L].change_ring(S)
+    ai=tt([i],LRv).subs(dicv)
+    aj=tt([j],LRv).subs(dicv)
+    aij=(ai*aj).truncate(2)
+    bij=(ai-aij)
+    cij=(aj-aij)
+    res+=sum([(bij*YY[i,u,v]-cij*YY[j,u,v])*XX[u,v].change_ring(S) for (u,v) in inc])
+    return res
+       	
+
+ordenPos=Permutation([1,3,7,5,8,11,4,10,9,6,2])
+wiringPos=[[(), [10, 9]], [(), [5, 8]], [(), [5, 11, 4, 9]], [(), [5, 10]], [(),
+[5, 6]], [(), [5, 2]], [(-7, -8), [7, 8]], [(), [7, 9]], [(), [7, 4]],
+[(), [7, 10, 6]], [(), [7, 11, 2]], [(-8, -4, 7), [6, 11]], [(-7, -5,
+-6, -4, 8), [3, 8, 11]], [(), [3, 4]], [(), [3, 10]], [(), [3, 9, 2,
+6]], [(3,), [8, 10]], [(4, 5, 2, 3, 4, -2), [1, 8, 4, 6]], [(), [1, 11,
+10]], [(), [1, 2]], [(), [1, 9]], [(-3, -4), [8, 2]]]
+ordenNeg=Permutation([1,7,5,3,4,10,11,8,2,6,9])
+wiringNeg=[[(), [3, 4]], [(), [3, 10]], [(), [3, 11, 8]], [(), [3, 2, 6, 9]],
+[(-5, -6, -7, -4, -5), [5, 8]], [(), [5, 11, 4, 9]], [(), [5, 10]], [(),
+[5, 6]], [(), [5, 2]], [(-4, 3, 6), [11, 6]], [(-6, -5), [9, 10]], [(4,
+5, 4, 8, -7, 6), [2, 8]], [(7,), [7, 4]], [(), [7, 10, 6]], [(), [7,
+8]], [(), [7, 9]], [(), [7, 2, 11]], [(-4, 5, -6, -3), [1, 4, 8, 6]],
+[(), [1, 9]], [(), [1, 11, 10]], [(), [1, 2]], [(-2, -4), [8, 10]]]
+n=11
+B=BraidGroup(n)
+F=FreeGroup(n)
+       	
+
+GrupoListaPos=list_of_relations_2(ordenPos,wiringPos)
+GrupoListaNeg=list_of_relations_2(ordenNeg,wiringNeg)
+combPos=[sorted(v[0]) for v in GrupoListaPos]
+combNeg=[sorted(v[0]) for v in GrupoListaNeg]
+print "Do combinatorics coincide? ",sorted(combPos)==sorted(combNeg)
+# Construct the list inc as a basis of commutators in G_1/G_2
+comb=[]
+for v in combPos:
+    for j in v[1:]:
+        comb.append([v[0],j])
+tot=[tuple(sorted(_.list())) for _ in Subsets([1..n],2)] 
+inc=[_ for _ in tot if list(_) not in comb]
+
+# The variables of the ring S are the unknowns of the final integral equation
+xx=var(['v%da%db%d'% (k,i,j) for k in [1..n] for (i,j) in inc])
+S=PolynomialRing(ZZ,xx)
+
+# The dictionnary YY relates the index of the unknowns with the morphism of groups.
+YY={}
+for k in [1..n]:
+    for l in range(len(inc)):
+        YY[k,inc[l][0],inc[l][1]]=S.gen((k-1)*len(inc)+l)
+
+LR=LaurentPolynomialRing(ZZ,'t',n)
+LRv=LR.change_ring(S)
+R=LR.polynomial_ring()
+T=PowerSeriesRing(S,'s',num_gens=n,default_prec=2)
+T0=T.change_ring(ZZ)
+HomLRT0=R.hom([1+v for v in T0.gens()],codomain=T0,check=True)
+dic={v:HomLRT0(v) for v in LR.gens()}
+dicv={v:HomLRT0(v).change_ring(S) for v in LRv.gens()}
+
+#We work with several modules, with basis the set of commutators. The elements XX[i,j] gives the commutator (any sign and order) with respect to the ring of Laurent polynomials
+
+M=FreeModule(LR,n*(n-1)/2)
+#MT=M.change_ring(T0)
+#Mv=M.change_ring(T)
+#XX={(i,j):M.gen(n*(i-1)-i*(i+1)/2+j-1) for i in range(1,n) for j in range(i+1,n+1)}
+XX={tot[i]:M.gen(i) for i in range(n*(n-1)/2)}
+for i in range(1,n+1):
+    XX[i,i]=M(0)
+    XX[-i,-i]=M(0)
+    XX[i,-i]=M(0)
+    XX[-i,i]=M(0)
+    for j in range(i+1,n+1):
+        XX[-i,j]=-tt([i],LR)^-1*XX[i,j]
+        XX[i,-j]=-tt([j],LR)^-1*XX[i,j]
+        XX[-i,-j]=tt([i],LR)^-1*tt([j],LR)^-1*XX[i,j]
+        XX[j,i]=-XX[i,j]
+        XX[-j,i]=-XX[i,-j]
+        XX[j,-i]=-XX[-i,j]
+        XX[-j,-i]=-XX[-i,-j]
+
+# Translate the relations in the groups as relations for the Alexander invariants
+relAlexPos=[]
+for v in GrupoListaPos:
+    relAlexPos+=CommCyclic1(v,F,LR,XX,dir='LR')
+print "Alexander invariant for first group"
+relAlexNeg=[]
+for v in GrupoListaNeg:
+    relAlexNeg+=CommCyclic1(v,F,LR,XX,dir='LR')
+nrels=len(relAlexNeg)
+print "Alexander invariant for the second group"
+
+# The above relations are written in the power series ring truncated at level 2
+relAlexSeriePos=Matrix([vector(w.subs(dic) for w in v.list()) for v in relAlexPos])
+relAlexSerieNeg=Matrix([vector(w.subs(dic) for w in v.list()) for v in relAlexNeg])
+
+#This matrix codifies each commutator in terms of the basis inc
+SustNeg=EscalonarM2(relAlexSerieNeg,n)
+print "The relations are used to write every one in terms of the basis inc"
+
+# Image of each commutator of the first group in the second group
+TotImagenMorfismo=[]
+for u in tot:
+    v=ImagenMorfismo(u,XX,YY,S,LRv,dicv,inc)
+    TotImagenMorfismo.append(v)
+    if u[-1]==n:
+        print "Finished pairs with line ", u[0]
+        
+relAlexVarPos=[]
+for ser in relAlexSeriePos:
+    vct=0
+    for j in range(n*(n-1)/2):
+        vct+=ser[j].change_ring(S)*TotImagenMorfismo[j]
+    relAlexVarPos.append(vct)
+relAlexVarPos=MatTrunc(Matrix(relAlexVarPos))
+relAlexVarPos=MatTrunc(relAlexVarPos*SustNeg.change_ring(T).transpose())
+print "Images of relations of first group in terms of the basis inc in the second group, done"
+
+relZPos=[]
+for prueba in relAlexVarPos:
+    relZPos.append(vector(flatten([[pr1.derivative(v).constant_coefficient() for v in T.gens()] for pr1 in prueba])))
+relZPos=Matrix(nrels,relZPos)
+print "Integral matrix from relations"
+
+
+#Adding Jacobi relations in the base inc and in the associated one in the next level
+JCB=[]
+for i in range(1,n-1):
+    for j in range(i+1,n):
+        for k in range(j+1,n+1):
+            JCB+=[T0.gen(i-1)*XX[j,k].change_ring(T0)+T0.gen(j-1)*XX[k,i].change_ring(T0)+T0.gen(k-1)*XX[i,j].change_ring(T0)]
+JCB=Matrix(JCB)
+JCB1=MatTrunc(JCB*SustNeg.transpose())
+JCB2=Matrix(JCB.nrows(),flatten([[v.derivative(w).constant_coefficient() for w in T0.gens()] for v in JCB1.list()]))
+print "Simplified Jacobi relations as integral matrix done"
+
+#Eliminating generators from Jacobi relations (if no torsion)
+SF,U,V=JCB2.smith_form()
+Jdiag=[SF[v,v] for v in range(SF.rank())]
+if Set(Jdiag)!=Set([1]):
+    print "Torsion at level 2"
+print "Smith form of Jacobi relations, done", SF.ncols()-SF.rank()," generators left"
+
+# Reduce the relations taking into account Jacobi relations (no torsion!)
+eqs=(relZPos*V).matrix_from_columns([SF.rank()..JCB2.ncols()-1])
+eqs1=[_ for _ in list(Set(eqs.list())) if _!=0]
+print len(eqs1)," equations in ",len(inc)*n," unknowns."
+
+# Put the system in matrix for, print the diagonal of the Smith form and a particular solution
+Aeq=Matrix([vector(eq.monomial_coefficient(v) for v in S.gens()) for eq in eqs1])
+Beq=vector(-eq.constant_coefficient() for eq in eqs1)
+print "Ranks: ", Aeq.rank(),Aeq.augment(Beq).rank()
+U1,U2,U3=Aeq.smith_form()
+diageq=[U1[v,v] for v in range(U1.rank())]
+diageq1=[_ for _ in diageq if _!=1]
+print "Ones in the diagonal of the smith form: ",diageq.count(1)
+print "Rest of the diagonal of the smith form: ",diageq1
+print "Non integers in the Particular Solution:", [_ for _ in U1.solve_right(U2*Beq) if _ not in ZZ]
+       	
+
+  
+
+ordenPos1=copy(ordenPos)
+wiringPos1=[[tuple(-i for i in _[0]),_[1]] for _ in wiringPos]
+       	
+  
+
+GrupoListaPos1=list_of_relations_2(ordenPos1,wiringPos1)
+combPos1=[sorted(v[0]) for v in GrupoListaPos1]
+print "Do combinatorics coincide? ",sorted(combPos1)==sorted(combNeg)
+# Construct the list inc as a basis of commutators in G_1/G_2
+
+# Translate the relations in the groups as relations for the Alexander invariants
+relAlexPos1=[]
+for v in GrupoListaPos1:
+    relAlexPos1+=CommCyclic1(v,F,LR,XX,dir='LR')
+print "Alexander invariant for first group"
+
+# The above relations are written in the power series ring truncated at level 2
+relAlexSeriePos1=Matrix([vector(w.subs(dic) for w in v.list()) for v in relAlexPos1])
+
+
+        
+relAlexVarPos1=[]
+for ser in relAlexSeriePos1:
+    vct=0
+    for j in range(n*(n-1)/2):
+        vct+=ser[j].change_ring(S)*TotImagenMorfismo[j]
+    relAlexVarPos1.append(vct)
+relAlexVarPos1=MatTrunc(Matrix(relAlexVarPos1))
+relAlexVarPos1=MatTrunc(relAlexVarPos1*SustNeg.change_ring(T).transpose())
+print "Images of relations of first group in terms of the basis inc in the second group, done"
+
+relZPos1=[]
+for prueba in relAlexVarPos1:
+    relZPos1.append(vector(flatten([[pr1.derivative(v).constant_coefficient() for v in T.gens()] for pr1 in prueba])))
+relZPos1=Matrix(nrels,relZPos1)
+print "Integral matrix from relations"
+
+
+# Reduce the relations taking into account Jacobi relations (no torsion!)
+eqs_1=(relZPos1*V).matrix_from_columns([SF.rank()..JCB2.ncols()-1])
+eqs1_1=[_ for _ in list(Set(eqs_1.list())) if _!=0]
+print len(eqs1_1)," equations in ",len(inc)*n," unknowns."
+
+# Put the system in matrix for, print the diagonal of the Smith form and a particular solution
+Aeq1=Matrix([vector(eq.monomial_coefficient(v) for v in S.gens()) for eq in eqs1_1])
+Beq1=vector(-eq.constant_coefficient() for eq in eqs1_1)
+print "Ranks: ", Aeq1.rank(),Aeq1.augment(Beq1).rank()
+U1_1,U2_1,U3_1=Aeq1.smith_form()
+diageq_1=[U1_1[v,v] for v in range(U1_1.rank())]
+diageq1_1=[_ for _ in diageq_1 if _!=1]
+print "Ones in the diagonal of the smith form: ",diageq_1.count(1)
+print "Rest of the diagonal of the smith form: ",diageq1_1
+print "Non integers in the Particular Solution:", [_ for _ in U1_1.solve_right(U2_1*Beq1) if _ not in ZZ]
