@@ -6,3 +6,5 @@ This repository contais the Sagemath code for the problem stated in the above li
 	CodeLines.sws: Notebook file with the code
 	
 	CodeLines.txt: text file to be used in a personal installation of Sagemath or in CloudSagemath
+	
+See http://arxiv.org/abs/1507.00190 for the full paper.
